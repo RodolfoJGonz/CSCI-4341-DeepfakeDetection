@@ -2,31 +2,37 @@ from retinaface import RetinaFace
 import cv2
 import os
 
-
-
-def detect_and_crop_face(image_path, output_dir):
-    # Read image
-    img = cv2.imread(image_path)
-    detections = RetinaFace.detect_faces(img)
-
+def detect_and_crop_face(frame, frame_idx, output_dir):
+    detections = RetinaFace.detect_faces(frame)
     if not detections:
-        print(f"No face detected in {image_path}")
+        print(f"No face detected in frame {frame_idx}")
         return
 
-    # Loop through detected faces
-    for i, (key, face) in enumerate(detections.items()):
-        facial_area = face["facial_area"]  # [x1, y1, x2, y2]
-        x1, y1, x2, y2 = facial_area
+    # Find the largest detected face (by bounding box area)
+    largest_face = None
+    max_area = 0
 
-        # Crop and save the face
-        cropped_face = img[y1:y2, x1:x2]
-        output_path = os.path.join(output_dir, f"face_{i}.jpg")
+    for face in detections.values():
+        x1, y1, x2, y2 = face["facial_area"]
+        area = (x2 - x1) * (y2 - y1)
+        if area > max_area:
+            max_area = area
+            largest_face = face
+
+    # Crop the largest face
+    if largest_face:
+        x1, y1, x2, y2 = largest_face["facial_area"]
+        cropped_face = frame[y1:y2, x1:x2]
+        output_path = os.path.join(output_dir, f"face_{frame_idx:04d}.jpg")
         cv2.imwrite(output_path, cropped_face)
 
 
+def extract_faces_from_video(video_path, output_root, frame_skip=32):
+    # Name output folder by video name
+    video_name = os.path.splitext(os.path.basename(video_path))[0]
+    video_output_dir = os.path.join(output_root, video_name)
+    os.makedirs(video_output_dir, exist_ok=True)
 
-def extract_and_detect(video_path, output_dir, frame_skip=32):
-    os.makedirs(output_dir, exist_ok=True)
     cap = cv2.VideoCapture(video_path)
     frame_num = 0
 
@@ -37,17 +43,15 @@ def extract_and_detect(video_path, output_dir, frame_skip=32):
 
         # Process every Nth frame
         if frame_num % frame_skip == 0:
-            frame_path = os.path.join(output_dir, f"frame_{frame_num}.jpg")
-            cv2.imwrite(frame_path, frame)
-
-            # Detect and crop face
-            detect_and_crop_face(frame_path, output_dir)
+            detect_and_crop_face(frame, frame_num, video_output_dir)
 
         frame_num += 1
 
     cap.release()
+    print(f"Processed video {video_name}, total frames: {frame_num}")
 
 
+# Example usage
 video_path = "./data/manipulated_sequences/Deepfakes/c23/videos/033_097.mp4"
-output_dir = "./data/manipulated_sequences/Deepfakes/c23/vid_frames/"
-extract_and_detect(video_path, output_dir)
+output_root = "./data/manipulated_sequences/Deepfakes/c23/vid_faces/"
+extract_faces_from_video(video_path, output_root, frame_skip=32)
