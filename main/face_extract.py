@@ -1,6 +1,5 @@
 from retinaface import RetinaFace
-import cv2
-import os
+import cv2, os, glob
 
 def detect_and_crop_face(frame, frame_idx, output_dir):
     detections = RetinaFace.detect_faces(frame)
@@ -52,6 +51,11 @@ def extract_faces_from_video(video_path, output_root, frame_skip=32):
 
 
 # Example usage
-video_path = "./data/manipulated_sequences/Deepfakes/c23/videos/033_097.mp4"
+# Iterate through videos in video path
+
+
+videos_path = "./data/manipulated_sequences/Deepfakes/c23/videos"
 output_root = "./data/manipulated_sequences/Deepfakes/c23/vid_faces/"
-extract_faces_from_video(video_path, output_root, frame_skip=32)
+for vid in glob.glob(f"{videos_path}/*.mp4"):
+    extract_faces_from_video(vid,output_root, frame_skip=32)
+#extract_faces_from_video(video_path, output_root, frame_skip=32)
